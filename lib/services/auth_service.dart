@@ -116,8 +116,12 @@ class AuthService {
     return res?['banned'] == true;
   }
 
-  Future<bool> testConnection() async {
+  Future<String?> testConnection() async {
     final res = await _api.call({'action': ApiActions.ping});
-    return res?['ok'] == true;
+    if (res?['ok'] == true) return null;
+    return res?['err']?.toString() ??
+        res?['error']?.toString() ??
+        _api.lastError ??
+        'فشل الاتصال';
   }
 }
