@@ -61,8 +61,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     setState(() { _testing = true; _msg = null; });
     try {
       final authSvc = ref.read(authServiceProvider);
-      final ok = await authSvc.testConnection();
-      setState(() { _msg = ok ? 'تم الاتصال بنجاح ✓' : 'فشل الاتصال'; _msgOk = ok; });
+      final err = await authSvc.testConnection();
+      setState(() {
+        _msg = err == null ? 'تم الاتصال بنجاح ✓' : 'فشل الاتصال: $err';
+        _msgOk = err == null;
+      });
     } finally {
       if (mounted) setState(() { _testing = false; });
     }
