@@ -1,0 +1,73 @@
+name: Android Debug APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Download fonts
+        run: |
+          mkdir -p assets/fonts assets/icons
+          curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf" \
+            -o assets/fonts/Cairo-Regular.ttf
+          cp assets/fonts/Cairo-Regular.ttf assets/fonts/Cairo-Medium.ttf
+          cp assets/fonts/Cairo-Regular.ttf assets/fonts/Cairo-SemiBold.ttf
+          cp assets/fonts/Cairo-Regular.ttf assets/fonts/Cairo-Bold.ttf
+          curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf" \
+            -o assets/fonts/Poppins-Regular.ttf
+          curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf" \
+            -o assets/fonts/Poppins-Medium.ttf
+          curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf" \
+            -o assets/fonts/Poppins-SemiBold.ttf
+          curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf" \
+            -o assets/fonts/Poppins-Bold.ttf
+          printf '\x89PNG\r\n\x1a\n' > assets/icons/icon_dark.png
+          cp assets/icons/icon_dark.png assets/icons/icon_light.png
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: Build debug APK
+        run: |
+          flutter build apk --debug \
+            --build-number=${{ github.run_number }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: to-best-debug-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+
+      - name: Attach APK to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-debug.apk
