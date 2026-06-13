@@ -1,0 +1,94 @@
+name: to_best
+description: TO Best — Professional Training & Nutrition System
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # HTTP client
+  dio: ^5.4.3
+  connectivity_plus: ^6.0.3
+
+  # Local storage
+  sqflite: ^2.3.3
+  shared_preferences: ^2.2.3
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  # Media
+  image_picker: ^1.1.2
+  cached_network_image: ^3.3.1
+  webview_flutter: ^4.7.0
+
+  # UI & UX
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  percent_indicator: ^4.2.3
+  fl_chart: ^0.68.0
+  intl: ^0.19.0
+
+  # Utils
+  permission_handler: ^11.3.1
+  uuid: ^4.4.0
+  crypto: ^3.0.3
+  encrypt: ^5.0.3
+  share_plus: ^9.0.0
+  url_launcher: ^6.3.0
+  wakelock_plus: ^1.2.5
+  audioplayers: ^6.0.0
+  flutter_local_notifications: ^17.2.2
+  package_info_plus: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.9
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/fonts/
+    - assets/lottie/
+
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cairo-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Cairo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

@@ -1,0 +1,225 @@
+workflows:
+  android-release:
+    name: TO Best — Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+
+    environment:
+      flutter: 3.19.6
+      xcode: latest
+      cocoapods: default
+      groups:
+        - keystore_credentials   # CM_KEYSTORE, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
+        - google_play            # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS, PACKAGE_NAME
+
+      vars:
+        PACKAGE_NAME: "com.tobest.app"
+        FLUTTER_VERSION: "3.19.6"
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/.gradle/caches
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+        - pattern: 'release/*'
+          include: true
+          source: true
+
+    scripts:
+      - name: Set up key.properties
+        script: |
+          cat >> "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=/tmp/keystore.jks
+          EOF
+          echo $CM_KEYSTORE | base64 --decode > /tmp/keystore.jks
+
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Flutter analyze
+        script: flutter analyze --no-fatal-infos
+        ignore_failure: true
+
+      - name: Ensure fonts and icons are present
+        script: |
+          mkdir -p assets/fonts assets/icons
+          # Cairo static fonts (all weights)
+          [ -f assets/fonts/Cairo-Regular.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf" -o assets/fonts/Cairo-Regular.ttf
+          [ -f assets/fonts/Cairo-Medium.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Medium.ttf"  -o assets/fonts/Cairo-Medium.ttf
+          [ -f assets/fonts/Cairo-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-SemiBold.ttf" -o assets/fonts/Cairo-SemiBold.ttf
+          [ -f assets/fonts/Cairo-Bold.ttf ]    || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"    -o assets/fonts/Cairo-Bold.ttf
+          # Poppins static fonts
+          [ -f assets/fonts/Poppins-Regular.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf"  -o assets/fonts/Poppins-Regular.ttf
+          [ -f assets/fonts/Poppins-Medium.ttf ]   || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf"   -o assets/fonts/Poppins-Medium.ttf
+          [ -f assets/fonts/Poppins-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf" -o assets/fonts/Poppins-SemiBold.ttf
+          [ -f assets/fonts/Poppins-Bold.ttf ]     || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf"     -o assets/fonts/Poppins-Bold.ttf
+
+      - name: Build Android App Bundle (release)
+        script: |
+          flutter build appbundle --release \
+            --build-number=$BUILD_NUMBER \
+            --build-name=1.0.$BUILD_NUMBER
+        when:
+          condition: event.tag
+
+      - name: Build Android APK (debug — for testing)
+        script: |
+          flutter build apk --debug \
+            --build-number=$BUILD_NUMBER \
+            --build-name=1.0.$BUILD_NUMBER
+        when:
+          condition: not event.tag
+
+    artifacts:
+      - build/**/outputs/**/*.apk
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+
+  android-debug:
+    name: TO Best — Android Debug (Quick)
+    max_build_duration: 40
+    instance_type: linux_x2
+
+    environment:
+      flutter: 3.19.6
+      groups:
+        - keystore_credentials
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/.gradle/caches
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Ensure fonts and icons are present
+        script: |
+          mkdir -p assets/fonts assets/icons
+          [ -f assets/fonts/Cairo-Regular.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf" -o assets/fonts/Cairo-Regular.ttf
+          [ -f assets/fonts/Cairo-Medium.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Medium.ttf"  -o assets/fonts/Cairo-Medium.ttf
+          [ -f assets/fonts/Cairo-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-SemiBold.ttf" -o assets/fonts/Cairo-SemiBold.ttf
+          [ -f assets/fonts/Cairo-Bold.ttf ]    || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"    -o assets/fonts/Cairo-Bold.ttf
+          [ -f assets/fonts/Poppins-Regular.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf"  -o assets/fonts/Poppins-Regular.ttf
+          [ -f assets/fonts/Poppins-Medium.ttf ]   || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf"   -o assets/fonts/Poppins-Medium.ttf
+          [ -f assets/fonts/Poppins-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf" -o assets/fonts/Poppins-SemiBold.ttf
+          [ -f assets/fonts/Poppins-Bold.ttf ]     || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf"     -o assets/fonts/Poppins-Bold.ttf
+
+      - name: Build Android APK (debug)
+        script: |
+          flutter build apk --debug \
+            --build-number=$BUILD_NUMBER \
+            --build-name=1.0.$BUILD_NUMBER
+
+    artifacts:
+      - build/**/outputs/**/*.apk
+
+  ios-release:
+    name: TO Best — iOS Release
+    max_build_duration: 90
+    instance_type: mac_mini_m1
+
+    integrations:
+      app_store_connect: codemagic  # App Store Connect API key name in CM settings
+
+    environment:
+      flutter: 3.19.6
+      xcode: latest
+      cocoapods: default
+      groups:
+        - ios_credentials   # APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY, CERTIFICATE_PRIVATE_KEY
+      vars:
+        BUNDLE_ID: "com.tobest.app"
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+        APP_STORE_APPLE_ID: "0000000000"  # Replace with your Apple ID numeric identifier
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+
+    triggering:
+      events:
+        - tag
+      branch_patterns:
+        - pattern: 'release/*'
+          include: true
+          source: true
+
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Ensure fonts and icons are present
+        script: |
+          mkdir -p assets/fonts assets/icons
+          [ -f assets/fonts/Cairo-Regular.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf" -o assets/fonts/Cairo-Regular.ttf
+          [ -f assets/fonts/Cairo-Medium.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Medium.ttf"  -o assets/fonts/Cairo-Medium.ttf
+          [ -f assets/fonts/Cairo-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-SemiBold.ttf" -o assets/fonts/Cairo-SemiBold.ttf
+          [ -f assets/fonts/Cairo-Bold.ttf ]    || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"    -o assets/fonts/Cairo-Bold.ttf
+          [ -f assets/fonts/Poppins-Regular.ttf ]  || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf"  -o assets/fonts/Poppins-Regular.ttf
+          [ -f assets/fonts/Poppins-Medium.ttf ]   || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf"   -o assets/fonts/Poppins-Medium.ttf
+          [ -f assets/fonts/Poppins-SemiBold.ttf ] || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf" -o assets/fonts/Poppins-SemiBold.ttf
+          [ -f assets/fonts/Poppins-Bold.ttf ]     || curl -fsSL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf"     -o assets/fonts/Poppins-Bold.ttf
+
+      - name: Build Flutter iOS (release)
+        script: |
+          flutter build ios --release --no-codesign \
+            --build-number=$BUILD_NUMBER \
+            --build-name=1.0.$BUILD_NUMBER
+
+      - name: Build unsigned .ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
