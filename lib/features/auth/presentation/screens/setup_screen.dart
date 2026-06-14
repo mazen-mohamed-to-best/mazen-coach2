@@ -57,11 +57,43 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // BUG FIX: _test() now:
+  //
+  // 1. Validates that URL field is not empty before proceeding.
+  //
+  // 2. Pre-configures ApiService with the URL currently typed in the
+  //    field (not just whatever was last saved to SharedPreferences).
+  //    BEFORE: if user hadn't clicked Save first, ApiService._webAppUrl
+  //    was still empty → isConfigured=false → call() returned null
+  //    immediately without hitting the network at all.
+  //
+  // 3. Correctly compares the return value of testConnection() which
+  //    now returns String? (null=ok, String=error message).
+  //    BEFORE: testConnection() returned bool, but the code compared it
+  //    to null — bool is NEVER null in Dart → always showed "فشل الاتصال".
+  // ─────────────────────────────────────────────────────────────────────
   Future<void> _test() async {
+    final url = _urlCtrl.text.trim();
+
+    // Guard: don't even try if URL field is empty
+    if (url.isEmpty) {
+      setState(() {
+        _msg = 'أدخل رابط Web App أولاً ثم اختبر الاتصال';
+        _msgOk = false;
+      });
+      return;
+    }
+
     setState(() { _testing = true; _msg = null; });
     try {
+      // Pre-configure ApiService with the current URL so the test uses
+      // what the user typed, not what was last persisted.
+      // Note: we pass empty string for sessionToken — it's irrelevant for PING.
+      ApiService().configure(url, '');
+
       final authSvc = ref.read(authServiceProvider);
-      final err = await authSvc.testConnection();
+      final err = await authSvc.testConnection(); // String? — null = success
       setState(() {
         _msg = err == null ? 'تم الاتصال بنجاح ✓' : 'فشل الاتصال: $err';
         _msgOk = err == null;
@@ -123,7 +155,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 child: Row(children: [
                   Icon(_msgOk ? Icons.check_circle_outline : Icons.error_outline, color: _msgOk ? AppColors.success : AppColors.error, size: 18),
                   const SizedBox(width: 8),
-                  Text(_msg!, style: TextStyle(fontFamily: 'Cairo', color: _msgOk ? AppColors.success : AppColors.error, fontSize: 13)),
+                  Expanded(child: Text(_msg!, style: TextStyle(fontFamily: 'Cairo', color: _msgOk ? AppColors.success : AppColors.error, fontSize: 13))),
                 ]),
               ).animate().fadeIn().shake(hz: _msgOk ? 0 : 4),
             ],
