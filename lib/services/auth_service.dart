@@ -107,8 +107,12 @@ class AuthService {
     return serverToken != (knownToken ?? '');
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // BUG FIX: checkBan now uses callPublic() since CHECK_BAN is a public
+  // action in GAS — no secret key needed.
+  // ─────────────────────────────────────────────────────────────────────
   Future<bool> checkBan(String email, String phone) async {
-    final res = await _api.call({
+    final res = await _api.callPublic({
       'action': ApiActions.checkBan,
       'email': email,
       'phone': phone,
@@ -116,12 +120,33 @@ class AuthService {
     return res?['banned'] == true;
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // BUG FIX: testConnection() now returns String? instead of bool.
+  //
+  // BEFORE (broken):
+  //   Future<bool> testConnection()
+  //   → setup_screen.dart did:  if (err == null) ...
+  //   → bool is NEVER null in Dart → always showed "فشل الاتصال"
+  //
+  // AFTER (fixed):
+  //   Future<String?> testConnection()
+  //   → returns null  = success  ✓
+  //   → returns String = error message  ✗
+  //
+  // Also switched from call() to callPublic() since PING is a public
+  // action in GAS (no secret required).
+  // ─────────────────────────────────────────────────────────────────────
   Future<String?> testConnection() async {
-    final res = await _api.call({'action': ApiActions.ping});
-    if (res?['ok'] == true) return null;
-    return res?['err']?.toString() ??
-        res?['error']?.toString() ??
-        _api.lastError ??
-        'فشل الاتصال';
+    if (!_api.isConfigured) {
+      return 'لم يتم ضبط الرابط بعد';
+    }
+    try {
+      final res = await _api.callPublic({'action': ApiActions.ping});
+      if (res == null) return 'تعذّر الوصول إلى الخادم — تحقق من الرابط';
+      if (res['ok'] == true) return null; // ← null = success
+      return res['err']?.toString() ?? 'استجابة غير متوقعة من الخادم';
+    } catch (e) {
+      return 'خطأ في الشبكة: $e';
+    }
   }
 }
